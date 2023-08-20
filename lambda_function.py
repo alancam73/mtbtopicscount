@@ -11,16 +11,6 @@ import argparse
 
 
 
-dynamodbtbl=boto3.resource('dynamodb')
-
-articleTblName = 'mtbTopics-Articles-Topics'
-articles_table = dynamodbtbl.Table(articleTblName)
-
-articlesPushedName = 'mtbTopics-Users-ArticlesPushed'
-pushed_table = dynamodbtbl.Table(articlesPushedName)
-
-
-
 # main lambda function handler
 def lambda_handler(event, context):
    
@@ -31,18 +21,28 @@ def lambda_handler(event, context):
    else:
       print("In python CLI context...")
    
+   client=boto3.client('dynamodb')
+   
    # Note - item_count updates approximately every 6 hours
-   print("Num articles in ", articleTblName, " : ", articles_table.item_count)
+   articleTblName = 'mtbTopics-Articles-Topics'
+   response = client.describe_table(TableName=articleTblName)
+   item_ct = response['Table']['ItemCount']
+   
+   print("Num articles in ", articleTblName, " : ", item_ct)
+   
    
    # now get the articlesPushedCt for each userId
-   response = pushed_table.scan(ProjectionExpression='userId,articlesPushedCt')['Items']
+   articlesPushedName = 'mtbTopics-Users-ArticlesPushed'
+   response = client.scan(TableName=articlesPushedName,
+                          ProjectionExpression='userId,articlesPushedCt')['Items']
 
    for user in response:
-      keys = user.keys()
-      if user['userId'] and int(user['articlesPushedCt']) > 0:
-         print("User: ", user['userId'], " has ", user['articlesPushedCt'], " pushed articles")
+
+      if user['userId']['S'] and int(user['articlesPushedCt']['N']) > 0:
+         print("User: ", user['userId']['S'], " has ", user['articlesPushedCt']['N'], " pushed articles")
    
-   return None       
+   
+   return None
 
 
 
